@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POWPE 打卡</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Noto+Sans+SC:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+  </script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+      background: #0b0b1a;
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(255, 107, 53, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 50%, rgba(255, 46, 99, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 0%, rgba(124, 58, 237, 0.06) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+      padding: 24px 0;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: clamp(1.8rem, 6vw, 2.8rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #ff6b35, #ff2e63);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.3;
+      letter-spacing: -0.02em;
+    }
+
+    header .subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.35);
+      margin-top: 8px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 28px 24px;
+      margin-bottom: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    /* --- POWPE BUTTON SECTION --- */
+    .powpe-section {
+      text-align: center;
+      padding: 36px 24px 32px;
+    }
+
+    .powpe-btn {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, #ff6b35, #ff2e63);
+      color: #fff;
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 8px 32px rgba(255, 46, 99, 0.3), 0 0 80px rgba(255, 107, 53, 0.15);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .powpe-btn::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b35, #ff2e63);
+      opacity: 0.3;
+      filter: blur(16px);
+      z-index: -1;
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-glow {
+      0%,
+      100% {
+        opacity: 0.3;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.08);
+      }
+    }
+
+    .powpe-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 12px 40px rgba(255, 46, 99, 0.4), 0 0 100px rgba(255, 107, 53, 0.2);
+    }
+
+    .powpe-btn:active {
+      transform: scale(0.92);
+    }
+
+    .powpe-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    .powpe-btn:disabled::after {
+      animation: none;
+      opacity: 0.1;
+    }
+
+    .powpe-btn .btn-text {
+      display: block;
+      line-height: 1;
+    }
+
+    .powpe-btn .btn-sub {
+      display: block;
+      font-size: 0.55rem;
+      font-weight: 600;
+      opacity: 0.8;
+      margin-top: 2px;
+    }
+
+    .daily-info {
+      margin-top: 20px;
+    }
+
+    .daily-count {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .daily-count span {
+      background: linear-gradient(135deg, #ff6b35, #ff2e63);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .daily-count .max {
+      font-weight: 400;
+      font-size: 1.2rem;
+      -webkit-text-fill-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .progress-wrap {
+      margin-top: 12px;
+      width: 100%;
+      max-width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar .fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #ff6b35, #ff2e63);
+      transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .daily-label {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.35);
+      margin-top: 8px;
+    }
+
+    /* --- STATS SECTION --- */
+    .stats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .stats-header h2 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .stats-summary {
+      display: flex;
+      gap: 4px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .stats-summary .num {
+      background: linear-gradient(135deg, #ff6b35, #ff2e63);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 3px;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 0;
+      text-align: center;
+      border: none;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+
+    .tab:hover {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .tab.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 200px;
+    }
+
+    .chart-wrap canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 0.85rem;
+      gap: 8px;
+    }
+
+    .chart-empty .icon {
+      font-size: 2rem;
+      opacity: 0.5;
+    }
+
+    /* --- HISTORY SECTION --- */
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .history-header h2 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .history-header .total {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .history-list {
+      max-height: 320px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .history-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .history-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    .history-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 0.88rem;
+    }
+
+    .history-item:last-child {
+      border-bottom: none;
+    }
+
+    .history-item .index {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.3);
+      flex-shrink: 0;
+    }
+
+    .history-item .date {
+      flex: 1;
+      padding: 0 12px;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: 500;
+    }
+
+    .history-item .time {
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 0.78rem;
+      font-weight: 400;
+    }
+
+    .history-empty {
+      text-align: center;
+      padding: 32px 0;
+      color: rgba(255, 255, 255, 0.2);
+      font-size: 0.85rem;
+    }
+
+    /* --- FOOTER ACTIONS --- */
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 8px 0 24px;
+    }
+
+    .action-btn {
+      padding: 8px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.45);
+      border-radius: 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s;
+      font-family: inherit;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.7);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .action-btn.danger:hover {
+      border-color: rgba(255, 46, 99, 0.3);
+      color: #ff2e63;
+    }
+
+    /* --- TOAST --- */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 10px 24px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+      animation: toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1), toast-out 0.3s 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      pointer-events: auto;
+    }
+
+    .toast.error {
+      border-color: rgba(255, 46, 99, 0.3);
+      color: #ff6b6b;
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes toast-out {
+      from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+      }
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+
+      #app {
+        padding: 8px 0;
+      }
+
+      .card {
+        padding: 20px 16px;
+        border-radius: 16px;
+      }
+
+      .powpe-section {
+        padding: 28px 16px 24px;
+      }
+
+      .powpe-btn {
+        width: 120px;
+        height: 120px;
+        font-size: 1.3rem;
+      }
+
+      .daily-count {
+        font-size: 1.8rem;
+      }
+
+      .chart-wrap {
+        height: 160px;
+      }
+
+      .history-list {
+        max-height: 240px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .powpe-btn {
+        width: 100px;
+        height: 100px;
+        font-size: 1.1rem;
+      }
+
+      .daily-count {
+        font-size: 1.5rem;
+      }
+
+      .card {
+        padding: 16px 12px;
+      }
+    }
+
+    /* --- FILE INPUT HIDDEN --- */
+    #importInput {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>今天你POWPE了吗</h1>
+      <div class="subtitle">✦ 每日打卡 · 上限10次</div>
+    </header>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- POWPE BUTTON -->
+    <div class="card powpe-section">
+      <button class="powpe-btn" id="powpeBtn">
+        <span class="btn-text">POWPE</span>
+        <span class="btn-sub">打卡</span>
+      </button>
+      <div class="daily-info">
+        <div class="daily-count">
+          <span id="dailyCountNum">0</span>
+          <span class="max">&nbsp;/ 10</span>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-bar">
+            <div class="fill" id="progressFill" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="daily-label" id="dailyLabel">今天还未打卡，加油！</div>
+      </div>
+    </div>
+
+    <!-- STATISTICS -->
+    <div class="card">
+      <div class="stats-header">
+        <h2>统计</h2>
+        <div class="stats-summary">
+          本周 <span class="num" id="weekTotal">0</span>
+          &nbsp;·&nbsp; 本月 <span class="num" id="monthTotal">0</span>
+          &nbsp;·&nbsp; 本年 <span class="num" id="yearTotal">0</span>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-period="week">周</button>
+        <button class="tab" data-period="month">月</button>
+        <button class="tab" data-period="year">年</button>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="statsChart"></canvas>
+        <div class="chart-empty" id="chartEmpty">
+          <span class="icon">📊</span>
+          <span>暂无数据</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="card">
+      <div class="history-header">
+        <h2>打卡记录</h2>
+        <span class="total" id="historyTotal">共 0 次</span>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="history-empty">还没有记录，去POWPE一下吧</div>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="actions">
+      <button class="action-btn" id="exportBtn">📥 导出数据</button>
+      <button class="action-btn" id="importBtn">📤 导入数据</button>
+      <button class="action-btn danger" id="clearBtn">🗑 清空</button>
+    </div>
+    <input type="file" id="importInput" accept=".json">
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'powpe_records';
+
+    let records = [];
+    let chart = null;
+    let currentPeriod = 'week';
+
+    // --- Utilities ---
+    function getToday() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function formatDate(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatDateFull(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+    }
+
+    function getWeekStart(date) {
+      const d = new Date(date);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      d.setDate(diff);
+      return d.toISOString().slice(0, 10);
+    }
+
+    function getMonthStart(date) {
+      return date.slice(0, 7) + '-01';
+    }
+
+    function getYear(date) {
+      return date.slice(0, 4);
+    }
+
+    function getDayOfWeek(dateStr) {
+      const days = ['日', '一', '二', '三', '四', '五', '六'];
+      return '周' + days[new Date(dateStr + 'T00:00:00').getDay()];
+    }
+
+    // --- Data ---
+    function loadRecords() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEY);
+        records = data ? JSON.parse(data) : [];
+      } catch {
+        records = [];
+      }
+    }
+
+    function saveRecords() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function getCountForDate(dateStr) {
+      return records.filter(r => r.date === dateStr).length;
+    }
+
+    function getCountForRange(startDate, endDate) {
+      return records.filter(r => r.date >= startDate && r.date <= endDate).length;
+    }
+
+    function getDailyData(rangeDates) {
+      return rangeDates.map(d => ({
+        date: d,
+        count: getCountForDate(d)
+      }));
+    }
+
+    function getMonthlyData(year) {
+      const monthCounts = Array(12).fill(0);
+      records.forEach(r => {
+        if (r.date.slice(0, 4) === year) {
+          const m = parseInt(r.date.slice(5, 7)) - 1;
+          monthCounts[m]++;
+        }
+      });
+      return monthCounts;
+    }
+
+    function getTodayCount() {
+      return getCountForDate(getToday());
+    }
+
+    function getWeekCount() {
+      const today = getToday();
+      const weekStart = getWeekStart(today);
+      return getCountForRange(weekStart, today);
+    }
+
+    function getMonthCount() {
+      const today = getToday();
+      const monthStart = getMonthStart(today);
+      return getCountForRange(monthStart, today);
+    }
+
+    function getYearCount() {
+      const year = getYear(getToday());
+      return records.filter(r => r.date.slice(0, 4) === year).length;
+    }
+
+    function getTotalCount() {
+      return records.length;
+    }
+
+    // --- UI ---
+    function updateDailyUI() {
+      const today = getToday();
+      const count = getCountForDate(today);
+      const max = 10;
+      const remaining = max - count;
+
+      document.getElementById('dailyCountNum').textContent = count;
+      document.getElementById('progressFill').style.width = `${(count / max) * 100}%`;
+
+      const label = document.getElementById('dailyLabel');
+      if (count === 0) {
+        label.textContent = '今天还未打卡，加油！';
+      } else if (count < max) {
+        label.textContent = `今日已打卡 ${count} 次，还可打卡 ${remaining} 次`;
+      } else {
+        label.textContent = '今日已满！明天继续吧 💪';
+      }
+
+      const btn = document.getElementById('powpeBtn');
+      btn.disabled = count >= max;
+    }
+
+    function updateStatsSummary() {
+      document.getElementById('weekTotal').textContent = getWeekCount();
+      document.getElementById('monthTotal').textContent = getMonthCount();
+      document.getElementById('yearTotal').textContent = getYearCount();
+    }
+
+    function updateHistory() {
+      const list = document.getElementById('historyList');
+      const total = document.getElementById('historyTotal');
+
+      total.textContent = `共 ${getTotalCount()} 次`;
+
+      if (records.length === 0) {
+        list.innerHTML = '<div class="history-empty">还没有记录，去POWPE一下吧</div>';
+        return;
+      }
+
+      const sorted = [...records].reverse().slice(0, 100);
+      list.innerHTML = sorted.map((r, i) => `
+            <div class="history-item">
+              <div class="index">#${records.length - (sorted.length - 1 - i)}</div>
+              <div class="date">${formatDateFull(r.date)} ${getDayOfWeek(r.date)}</div>
+              <div class="time">${formatTime(r.timestamp)}</div>
+            </div>
+          `).join('');
+    }
+
+    function updateChart() {
+      const today = getToday();
+      let labels, data, title;
+
+      const emptyState = document.getElementById('chartEmpty');
+
+      if (currentPeriod === 'week') {
+        const weekStart = getWeekStart(today);
+        const dates = [];
+        for (let d = new Date(weekStart + 'T00:00:00'); d <= new Date(today + 'T00:00:00'); d.setDate(d.getDate() + 1)) {
+          dates.push(d.toISOString().slice(0, 10));
+        }
+        const dailyData = getDailyData(dates);
+        labels = dates.map(d => formatDate(d));
+        data = dailyData.map(d => d.count);
+        title = '本周每日打卡';
+      } else if (currentPeriod === 'month') {
+        const year = parseInt(today.slice(0, 4));
+        const month = parseInt(today.slice(5, 7));
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const dates = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+          const ds = `${today.slice(0, 7)}-${String(d).padStart(2, '0')}`;
+          dates.push(ds);
+        }
+        const dailyData = getDailyData(dates);
+        labels = dates.map(d => d.slice(8) + '日');
+        data = dailyData.map(d => d.count);
+        title = '本月每日打卡';
+      } else {
+        const year = getYear(today);
+        const monthlyData = getMonthlyData(year);
+        labels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+        data = monthlyData;
+        title = '本年每月打卡';
+      }
+
+      const hasData = data.some(v => v > 0);
+      emptyState.style.display = hasData ? 'none' : 'flex';
+
+      if (chart) {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update('none');
+      } else {
+        const ctx = document.getElementById('statsChart').getContext('2d');
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              data,
+              backgroundColor: data.map(v =>
+                v > 0 ? 'rgba(255, 107, 53, 0.7)' : 'rgba(255, 255, 255, 0.04)'
+              ),
+              borderColor: data.map(v =>
+                v > 0 ? 'rgba(255, 107, 53, 1)' : 'rgba(255, 255, 255, 0.08)'
+              ),
+              borderWidth: 1,
+              borderRadius: 4,
+              borderSkipped: false,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(11, 11, 26, 0.9)',
+                titleColor: '#fff',
+                bodyColor: 'rgba(255,255,255,0.7)',
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false,
+                callbacks: {
+                  label: (ctx) => `${ctx.parsed.y} 次`
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: {
+                  color: 'rgba(255,255,255,0.25)',
+                  font: { size: 10, family: 'Inter' },
+                  maxRotation: 0,
+                }
+              },
+              y: {
+                beginAtZero: true,
+                grid: {
+                  color: 'rgba(255,255,255,0.04)',
+                },
+                ticks: {
+                  color: 'rgba(255,255,255,0.2)',
+                  font: { size: 10, family: 'Inter' },
+                  stepSize: 1,
+                }
+              }
+            }
+          }
+        });
+      }
+
+      // Update bar colors dynamically based on data
+      if (chart) {
+        chart.data.datasets[0].backgroundColor = chart.data.datasets[0].data.map(v =>
+          v > 0 ? 'rgba(255, 107, 53, 0.7)' : 'rgba(255, 255, 255, 0.04)'
+        );
+        chart.data.datasets[0].borderColor = chart.data.datasets[0].data.map(v =>
+          v > 0 ? 'rgba(255, 107, 53, 1)' : 'rgba(255, 255, 255, 0.08)'
+        );
+        chart.update('none');
+      }
+    }
+
+    function refreshUI() {
+      updateDailyUI();
+      updateStatsSummary();
+      updateHistory();
+      updateChart();
+    }
+
+    // --- Actions ---
+    function addRecord() {
+      const today = getToday();
+      const count = getCountForDate(today);
+      if (count >= 10) {
+        showToast('今日已达上限 (10次)，明天继续！', 'error');
+        return;
+      }
+
+      const now = new Date().toISOString();
+      records.push({
+        timestamp: now,
+        date: today
+      });
+      saveRecords();
+      refreshUI();
+      animateButton();
+    }
+
+    function animateButton() {
+      const btn = document.getElementById('powpeBtn');
+      btn.style.transform = 'scale(0.85)';
+      setTimeout(() => {
+        btn.style.transform = 'scale(1.05)';
+        setTimeout(() => {
+          btn.style.transform = 'scale(1)';
+        }, 150);
+      }, 100);
+    }
+
+    function exportData() {
+      const data = JSON.stringify(records, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `powpe_${getToday()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('数据已导出');
+    }
+
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) throw new Error('格式错误');
+          // Validate each record
+          imported.forEach(r => {
+            if (!r.timestamp || !r.date) throw new Error('记录格式不完整');
+          });
+          // Merge: add records that don't exist (by timestamp)
+          const existingTimestamps = new Set(records.map(r => r.timestamp));
+          let added = 0;
+          imported.forEach(r => {
+            if (!existingTimestamps.has(r.timestamp)) {
+              records.push(r);
+              added++;
+            }
+          });
+          saveRecords();
+          refreshUI();
+          showToast(`导入了 ${added} 条记录`);
+        } catch (err) {
+          showToast('导入失败：文件格式不正确', 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function clearData() {
+      if (records.length === 0) {
+        showToast('没有数据可清空');
+        return;
+      }
+      if (confirm('确定清空所有打卡数据吗？此操作不可恢复！')) {
+        records = [];
+        saveRecords();
+        refreshUI();
+        showToast('已清空所有数据');
+      }
+    }
+
+    function showToast(message, type) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `toast${type === 'error' ? ' error' : ''}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 2500);
+    }
+
+    // --- Events ---
+    document.getElementById('powpeBtn').addEventListener('click', addRecord);
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentPeriod = tab.dataset.period;
+        updateChart();
+      });
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+
+    document.getElementById('importBtn').addEventListener('click', () => {
+      document.getElementById('importInput').click();
+    });
+
+    document.getElementById('importInput').addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        importData(e.target.files[0]);
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', clearData);
+
+    // --- Keyboard shortcut ---
+    document.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        const btn = document.getElementById('powpeBtn');
+        if (document.activeElement?.tagName !== 'INPUT' &&
+          document.activeElement?.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          btn.click();
+        }
+      }
+    });
+
+    // --- Init ---
+    loadRecords();
+    refreshUI();
+
+    // Auto-refresh at midnight
+    const now = new Date();
+    const msToMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0) - now;
+    setTimeout(() => {
+      refreshUI();
+      // Refresh every hour after that
+      setInterval(refreshUI, 3600000);
+    }, msToMidnight);
+  </script>
+</body>
+</html>
